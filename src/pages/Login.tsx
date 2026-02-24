@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Leaf, ArrowLeft } from "lucide-react";
+import { Leaf, ArrowLeft, Wheat, ShieldCheck, QrCode } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -13,6 +13,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) navigate("/dashboard");
+    });
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,15 +36,31 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-1/2 gradient-hero items-center justify-center p-12 relative">
-        <div className="max-w-md text-center">
+      <div className="hidden lg:flex lg:w-1/2 gradient-hero items-center justify-center p-12 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-20 left-10 w-32 h-32 rounded-full border-2 border-primary-foreground/30" />
+          <div className="absolute bottom-32 right-16 w-48 h-48 rounded-full border border-primary-foreground/20" />
+        </div>
+        <div className="max-w-md text-center relative z-10">
           <Leaf className="w-16 h-16 text-gold mx-auto mb-6" />
           <h2 className="text-3xl font-bold text-primary-foreground mb-4 font-serif">
             Riz Danané IGP
           </h2>
-          <p className="text-primary-foreground/70 text-lg">
+          <p className="text-primary-foreground/70 text-lg mb-10">
             Plateforme officielle de traçabilité de la filière rizicole sous Indication Géographique Protégée.
           </p>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            {[
+              { icon: Wheat, label: "Traçabilité" },
+              { icon: ShieldCheck, label: "Sécurité" },
+              { icon: QrCode, label: "QR Code" },
+            ].map(({ icon: Icon, label }) => (
+              <div key={label} className="p-3 rounded-lg bg-primary-foreground/10">
+                <Icon className="w-6 h-6 text-gold mx-auto mb-1" />
+                <span className="text-xs text-primary-foreground/60">{label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -65,7 +88,9 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Mot de passe</Label>
+              </div>
               <Input
                 id="password"
                 type="password"
