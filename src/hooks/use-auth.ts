@@ -74,6 +74,9 @@ export function useAuth() {
       } else {
         setState((s) => ({ ...s, loading: false }));
       }
+    }).catch((error) => {
+      console.error("Error getting session:", error);
+      setState((s) => ({ ...s, loading: false }));
     });
 
     return () => subscription.unsubscribe();

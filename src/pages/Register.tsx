@@ -71,10 +71,7 @@ export default function RegisterPage() {
       {/* Right panel */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <Link to="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            Retour à l'accueil
-          </Link>
+
 
           <h1 className="text-3xl font-bold text-foreground mb-2 font-serif">Demande d'accès</h1>
           <p className="text-muted-foreground mb-8">Créez votre compte — un administrateur GR-IGP validera votre profil.</p>
