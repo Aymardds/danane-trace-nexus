@@ -76,14 +76,15 @@ export function useAuth() {
       }
     }).catch((error) => {
       console.error("Error getting session:", error);
-      // Clear potentially stale session data if we get a 400 error
-      if (error?.message?.includes('400') || error?.status === 400) {
-        Object.keys(localStorage).forEach(key => {
-          if (key.includes('supabase.auth.token')) {
-            localStorage.removeItem(key);
-          }
-        });
-      }
+      // Clear potentially stale session data on any auth error
+      // This is a robust fix for persistent 400 errors
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('supabase.auth.token') || key.startsWith('sb-')) {
+          localStorage.removeItem(key);
+        }
+      });
+      // Force internal client cleanup
+      supabase.auth.signOut();
       setState((s) => ({ ...s, loading: false }));
     });
 
