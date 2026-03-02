@@ -76,6 +76,14 @@ export function useAuth() {
       }
     }).catch((error) => {
       console.error("Error getting session:", error);
+      // Clear potentially stale session data if we get a 400 error
+      if (error?.message?.includes('400') || error?.status === 400) {
+        Object.keys(localStorage).forEach(key => {
+          if (key.includes('supabase.auth.token')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
       setState((s) => ({ ...s, loading: false }));
     });
 
