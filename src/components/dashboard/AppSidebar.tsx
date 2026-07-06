@@ -83,8 +83,8 @@ export function AppSidebar({ email, roles, requestedRole, onSignOut }: AppSideba
   return (
     <Sidebar className="border-r border-sidebar-border">
       <div className="p-4 flex items-center gap-3 border-b border-sidebar-border">
-        <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center">
-          <Leaf className="w-5 h-5 text-sidebar-primary-foreground" />
+        <div className="w-10 h-10 rounded bg-white flex items-center justify-center p-0.5 overflow-hidden shadow-sm">
+          <img src="/logo.png" alt="Riz Danané Logo" className="w-full h-full object-contain" />
         </div>
         <div className="flex-1 min-w-0">
           <span className="font-serif font-bold text-sidebar-foreground text-sm block leading-tight">Riz Danané</span>
