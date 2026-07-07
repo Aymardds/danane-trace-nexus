@@ -40,7 +40,10 @@ const roleLabels: Record<string, string> = {
   admin: "Administrateur",
 };
 
-export default function DashboardHome({ user, profile, roles }: DashboardHomeProps) {
+import { useOutletContext } from "react-router-dom";
+
+export default function DashboardHome() {
+  const { user, profile, roles } = useOutletContext<DashboardHomeProps>();
   const fullName = profile?.full_name || user?.user_metadata?.full_name || user?.email || "Utilisateur";
   const effectiveRole = roles[0] ?? profile?.requested_role ?? "producteur";
   const stats = effectiveRole === "cooperative" ? cooperativeStats : producteurStats;

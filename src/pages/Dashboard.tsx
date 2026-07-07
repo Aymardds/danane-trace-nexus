@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
@@ -47,7 +47,7 @@ export default function Dashboard() {
           onSignOut={signOut}
         />
         <main className="flex-1 p-6 md:p-8 bg-background overflow-auto">
-          <DashboardHome user={user} profile={profile} roles={roles} />
+          <Outlet context={{ user, profile, roles }} />
         </main>
       </div>
     </SidebarProvider>
