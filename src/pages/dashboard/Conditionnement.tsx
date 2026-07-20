@@ -168,7 +168,7 @@ export default function Conditionnement() {
                   <Select value={form.type_emballage} onValueChange={(v) => setForm({ ...form, type_emballage: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {["5kg", "10kg", "25kg", "50kg"].map((e) => (<SelectItem key={e} value={e}>{e}</SelectItem>))}
+                      {["1kg", "5kg", "10kg", "25kg", "50kg"].map((e) => (<SelectItem key={e} value={e}>{e}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
