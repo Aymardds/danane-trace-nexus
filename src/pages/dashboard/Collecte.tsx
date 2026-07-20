@@ -20,8 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Truck, Plus, Edit2, Trash2, Loader2, Search } from "lucide-react";
+import { Truck, Plus, Edit2, Trash2, Loader2, Search, QrCode, ScanLine } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import { QRScanner } from "@/components/qr/QRScanner";
+import { QRGenerator } from "@/components/qr/QRGenerator";
 
 interface Collecte {
   id: string;
@@ -59,6 +61,8 @@ export default function Collecte() {
   const [editTarget, setEditTarget] = useState<Collecte | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
+  const [qrTarget, setQrTarget] = useState<Collecte | null>(null);
   const isAdmin = roles.includes("admin");
 
   const fetchData = async () => {
@@ -111,6 +115,23 @@ export default function Collecte() {
       toast({ title: editTarget ? "Collecte modifiée" : "Collecte enregistrée" });
       setDialogOpen(false);
       fetchData();
+      
+      // If it's a new record and we have the inserted data, we can optionally show its QR right away.
+      // But they can also just click the QR button in the table.
+    }
+  };
+
+  const handleScanSuccess = (decodedText: string) => {
+    setIsScanning(false);
+    // Find if it matches a lot_paddy
+    const foundLot = lots.find(l => l.id === decodedText);
+    if (foundLot) {
+      setEditTarget(null);
+      setForm({ ...emptyForm, lot_paddy_id: foundLot.id });
+      setDialogOpen(true);
+      toast({ title: "Lot identifié", description: `Lot: ${foundLot.id_prod}` });
+    } else {
+      toast({ title: "Code non reconnu", description: "Ce QR code ne correspond à aucun lot paddy connu.", variant: "destructive" });
     }
   };
 
@@ -145,10 +166,14 @@ export default function Collecte() {
           </h1>
           <p className="text-muted-foreground mt-1">Enregistrez les collectes de paddy</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openAdd} className="gap-2"><Plus className="w-4 h-4" /> Nouvelle collecte</Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsScanning(true)} className="gap-2">
+            <ScanLine className="w-4 h-4" /> Scanner un Lot
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openAdd} className="gap-2"><Plus className="w-4 h-4" /> Nouvelle collecte</Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{editTarget ? "Modifier la collecte" : "Enregistrer une collecte"}</DialogTitle>
@@ -189,7 +214,30 @@ export default function Collecte() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      {isScanning && (
+        <QRScanner 
+          onScanSuccess={handleScanSuccess} 
+          onClose={() => setIsScanning(false)} 
+        />
+      )}
+
+      <Dialog open={!!qrTarget} onOpenChange={(open) => !open && setQrTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>QR Code de la Collecte</DialogTitle>
+          </DialogHeader>
+          {qrTarget && (
+            <QRGenerator 
+              value={qrTarget.id} 
+              title={`Collecte du lot`} 
+              subtitle={getLotLabel(qrTarget.lot_paddy_id)} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -237,6 +285,9 @@ export default function Collecte() {
                     <td className="px-4 py-3 text-muted-foreground">{c.qualite_note ?? "—"}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => setQrTarget(c)} title="Afficher QR Code">
+                          <QrCode className="w-3.5 h-3.5" />
+                        </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(c)}><Edit2 className="w-3.5 h-3.5" /></Button>
                         {isAdmin && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(c.id)}><Trash2 className="w-3.5 h-3.5" /></Button>}
                       </div>

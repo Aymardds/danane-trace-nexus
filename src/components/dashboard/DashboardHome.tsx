@@ -1,7 +1,10 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Wheat, MapPin, Package, AlertTriangle, Building2, Truck } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/supabase/client";
+import { useOutletContext } from "react-router-dom";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -16,20 +19,6 @@ interface DashboardHomeProps {
   roles: AppRole[];
 }
 
-const producteurStats = [
-  { label: "Parcelles enregistrées", value: "0", icon: MapPin, color: "text-primary" },
-  { label: "Lots paddy", value: "0", icon: Wheat, color: "text-gold" },
-  { label: "Sacs conditionnés", value: "0", icon: Package, color: "text-emerald-light" },
-  { label: "Non-conformités", value: "0", icon: AlertTriangle, color: "text-destructive" },
-];
-
-const cooperativeStats = [
-  { label: "Producteurs validés", value: "0", icon: Building2, color: "text-primary" },
-  { label: "Parcelles rattachées", value: "0", icon: MapPin, color: "text-gold" },
-  { label: "Volumes collectés (T)", value: "0", icon: Truck, color: "text-emerald-light" },
-  { label: "Alertes", value: "0", icon: AlertTriangle, color: "text-destructive" },
-];
-
 const roleLabels: Record<string, string> = {
   producteur: "Producteur",
   cooperative: "Coopérative",
@@ -40,13 +29,71 @@ const roleLabels: Record<string, string> = {
   admin: "Administrateur",
 };
 
-import { useOutletContext } from "react-router-dom";
-
 export default function DashboardHome() {
   const { user, profile, roles } = useOutletContext<DashboardHomeProps>();
   const fullName = profile?.full_name || user?.user_metadata?.full_name || user?.email || "Utilisateur";
   const effectiveRole = roles[0] ?? profile?.requested_role ?? "producteur";
-  const stats = effectiveRole === "cooperative" ? cooperativeStats : producteurStats;
+
+  const [stats, setStats] = useState({
+    parcelles: 0,
+    lots: 0,
+    sacs: 0,
+    alertes: 0,
+    producteurs: 0,
+    volumesCollectes: 0,
+  });
+
+  useEffect(() => {
+    async function fetchStats() {
+      if (!user) return;
+      
+      const [
+        { count: parcellesCount },
+        { count: lotsCount },
+        { data: sacsData },
+        { count: auditsCount },
+        { count: prodsCount },
+        { data: collectesData }
+      ] = await Promise.all([
+        supabase.from("parcelles").select("*", { count: "exact", head: true }),
+        supabase.from("lots_paddy").select("*", { count: "exact", head: true }),
+        supabase.from("conditionnements").select("quantite_sacs"),
+        supabase.from("audits").select("*", { count: "exact", head: true }).neq("resultat", "Conforme"),
+        supabase.from("user_roles").select("*", { count: "exact", head: true }).eq("role", "producteur"),
+        supabase.from("lots_paddy").select("poids_estime_kg")
+      ]);
+
+      const totalSacs = sacsData?.reduce((sum, item) => sum + (item.quantite_sacs || 0), 0) || 0;
+      const totalVolume = collectesData?.reduce((sum, item) => sum + (item.poids_estime_kg || 0), 0) || 0;
+
+      setStats({
+        parcelles: parcellesCount || 0,
+        lots: lotsCount || 0,
+        sacs: totalSacs,
+        alertes: auditsCount || 0,
+        producteurs: prodsCount || 0,
+        volumesCollectes: Math.round(totalVolume / 1000), // En tonnes
+      });
+    }
+
+    fetchStats();
+  }, [user]);
+
+  const producteurStats = [
+    { label: "Parcelles enregistrées", value: stats.parcelles.toString(), icon: MapPin, color: "text-primary" },
+    { label: "Lots paddy", value: stats.lots.toString(), icon: Wheat, color: "text-gold" },
+    { label: "Sacs conditionnés", value: stats.sacs.toString(), icon: Package, color: "text-emerald-light" },
+    { label: "Non-conformités", value: stats.alertes.toString(), icon: AlertTriangle, color: "text-destructive" },
+  ];
+
+  const cooperativeStats = [
+    { label: "Producteurs inscrits", value: stats.producteurs.toString(), icon: Building2, color: "text-primary" },
+    { label: "Parcelles rattachées", value: stats.parcelles.toString(), icon: MapPin, color: "text-gold" },
+    { label: "Volumes Paddy (T)", value: stats.volumesCollectes.toString(), icon: Truck, color: "text-emerald-light" },
+    { label: "Alertes", value: stats.alertes.toString(), icon: AlertTriangle, color: "text-destructive" },
+  ];
+
+  const currentStats = effectiveRole === "cooperative" ? cooperativeStats : producteurStats;
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -65,7 +112,7 @@ export default function DashboardHome() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-        {stats.map((stat) => (
+        {currentStats.map((stat) => (
           <Card key={stat.label} className="p-6 shadow-card hover:shadow-elevated transition-shadow">
             <div className="flex items-center justify-between mb-4">
               <stat.icon className={`w-8 h-8 ${stat.color}`} />

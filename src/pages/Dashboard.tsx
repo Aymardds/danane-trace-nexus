@@ -1,6 +1,6 @@
 import { useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import DashboardHome from "@/components/dashboard/DashboardHome";
 import AwaitingApproval from "@/components/dashboard/AwaitingApproval";
@@ -46,8 +46,13 @@ export default function Dashboard() {
           requestedRole={profile?.requested_role}
           onSignOut={signOut}
         />
-        <main className="flex-1 p-6 md:p-8 bg-background overflow-auto">
-          <Outlet context={{ user, profile, roles }} />
+        <main className="flex-1 p-4 md:p-8 bg-background overflow-auto relative w-full max-w-full">
+          <div className="md:hidden mb-4 sticky top-0 bg-background/80 backdrop-blur-sm z-10 py-2 border-b">
+            <SidebarTrigger />
+          </div>
+          <div className="max-w-full overflow-hidden">
+            <Outlet context={{ user, profile, roles }} />
+          </div>
         </main>
       </div>
     </SidebarProvider>

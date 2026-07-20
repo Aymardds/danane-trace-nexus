@@ -20,8 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Wheat, Plus, Edit2, Trash2, Loader2, Search, Badge } from "lucide-react";
+import { Wheat, Plus, Edit2, Trash2, Loader2, Search, QrCode } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import { QRGenerator } from "@/components/qr/QRGenerator";
 
 interface LotPaddy {
   id: string;
@@ -69,6 +70,7 @@ export default function Recoltes() {
   const [submitting, setSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<LotPaddy | null>(null);
+  const [qrTarget, setQrTarget] = useState<LotPaddy | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
   const isAdmin = roles.includes("admin");
@@ -239,6 +241,21 @@ export default function Recoltes() {
         <Input className="pl-9" placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
+      <Dialog open={!!qrTarget} onOpenChange={(open) => !open && setQrTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>QR Code du Lot</DialogTitle>
+          </DialogHeader>
+          {qrTarget && (
+            <QRGenerator 
+              value={qrTarget.id} 
+              title={`Lot: ${qrTarget.id_prod}`} 
+              subtitle={`Variété: ${qrTarget.variete}`} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: "Total lots", value: lots.length },
@@ -287,6 +304,9 @@ export default function Recoltes() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => setQrTarget(l)} title="Afficher QR Code">
+                          <QrCode className="w-3.5 h-3.5" />
+                        </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(l)}><Edit2 className="w-3.5 h-3.5" /></Button>
                         {isAdmin && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(l.id)}><Trash2 className="w-3.5 h-3.5" /></Button>}
                       </div>

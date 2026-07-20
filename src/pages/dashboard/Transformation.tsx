@@ -12,8 +12,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Factory, Plus, Edit2, Trash2, Loader2, Search } from "lucide-react";
+import { Factory, Plus, Edit2, Trash2, Loader2, Search, QrCode, ScanLine } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import { QRScanner } from "@/components/qr/QRScanner";
+import { QRGenerator } from "@/components/qr/QRGenerator";
 
 interface Transformation {
   id: string;
@@ -34,22 +36,27 @@ export default function Transformation() {
   const { toast } = useToast();
   const [transformations, setTransformations] = useState<Transformation[]>([]);
   const [lots, setLots] = useState<LotPaddy[]>([]);
+  const [collectes, setCollectes] = useState<{ id: string; lot_paddy_id: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Transformation | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
+  const [qrTarget, setQrTarget] = useState<Transformation | null>(null);
   const isAdmin = roles.includes("admin");
 
   const fetchData = async () => {
     setLoading(true);
-    const [{ data: tData }, { data: lData }] = await Promise.all([
+    const [{ data: tData }, { data: lData }, { data: cData }] = await Promise.all([
       supabase.from("transformations").select("*").order("created_at", { ascending: false }),
       supabase.from("lots_paddy").select("id, id_prod, variete"),
+      supabase.from("collectes").select("id, lot_paddy_id"),
     ]);
     setTransformations(tData ?? []);
     setLots(lData ?? []);
+    setCollectes(cData ?? []);
     setLoading(false);
   };
 
@@ -87,6 +94,27 @@ export default function Transformation() {
     }
   };
 
+  const handleScanSuccess = (decodedText: string) => {
+    setIsScanning(false);
+    
+    let foundLot = lots.find(l => l.id === decodedText);
+    if (!foundLot) {
+      const foundCollecte = collectes.find(c => c.id === decodedText);
+      if (foundCollecte) {
+        foundLot = lots.find(l => l.id === foundCollecte.lot_paddy_id);
+      }
+    }
+    
+    if (foundLot) {
+      setEditTarget(null);
+      setForm({ ...emptyForm, lot_paddy_id: foundLot.id });
+      setDialogOpen(true);
+      toast({ title: "Lot identifié", description: `Lot: ${foundLot.id_prod}` });
+    } else {
+      toast({ title: "Code non reconnu", description: "Ce QR code ne correspond à aucun lot paddy ou collecte connus.", variant: "destructive" });
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Supprimer cette transformation ?")) return;
     const { error } = await supabase.from("transformations").delete().eq("id", id);
@@ -113,10 +141,14 @@ export default function Transformation() {
           </h1>
           <p className="text-muted-foreground mt-1">Enregistrez la transformation du paddy en riz blanc</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openAdd} className="gap-2"><Plus className="w-4 h-4" /> Nouvelle transformation</Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsScanning(true)} className="gap-2">
+            <ScanLine className="w-4 h-4" /> Scanner Lot ou Collecte
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openAdd} className="gap-2"><Plus className="w-4 h-4" /> Nouvelle transformation</Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>{editTarget ? "Modifier" : "Enregistrer une transformation"}</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 mt-2">
@@ -149,7 +181,30 @@ export default function Transformation() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      {isScanning && (
+        <QRScanner 
+          onScanSuccess={handleScanSuccess} 
+          onClose={() => setIsScanning(false)} 
+        />
+      )}
+
+      <Dialog open={!!qrTarget} onOpenChange={(open) => !open && setQrTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>QR Code de la Transformation</DialogTitle>
+          </DialogHeader>
+          {qrTarget && (
+            <QRGenerator 
+              value={qrTarget.id} 
+              title={`Transformation`} 
+              subtitle={`Lot: ${getLotLabel(qrTarget.lot_paddy_id)}`} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -196,6 +251,9 @@ export default function Transformation() {
                     <td className="px-4 py-3">{new Date(t.date_transformation).toLocaleDateString("fr-FR")}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => setQrTarget(t)} title="Afficher QR Code">
+                          <QrCode className="w-3.5 h-3.5" />
+                        </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(t)}><Edit2 className="w-3.5 h-3.5" /></Button>
                         {isAdmin && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(t.id)}><Trash2 className="w-3.5 h-3.5" /></Button>}
                       </div>

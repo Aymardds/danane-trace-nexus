@@ -12,8 +12,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Package, Plus, Edit2, Trash2, Loader2, Search } from "lucide-react";
+import { Package, Plus, Edit2, Trash2, Loader2, Search, ScanLine, QrCode } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import { QRScanner } from "@/components/qr/QRScanner";
+import { QRGenerator } from "@/components/qr/QRGenerator";
 
 interface Conditionnement {
   id: string;
@@ -43,6 +45,8 @@ export default function Conditionnement() {
   const [editTarget, setEditTarget] = useState<Conditionnement | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
+  const [qrTarget, setQrTarget] = useState<Conditionnement | null>(null);
   const isAdmin = roles.includes("admin");
 
   const fetchData = async () => {
@@ -95,6 +99,24 @@ export default function Conditionnement() {
     }
   };
 
+  const handleScanSuccess = (decodedText: string) => {
+    setIsScanning(false);
+    
+    let foundTransfo = transformations.find(t => t.id === decodedText);
+    if (!foundTransfo) {
+      foundTransfo = transformations.find(t => t.lot_paddy_id === decodedText);
+    }
+    
+    if (foundTransfo) {
+      setEditTarget(null);
+      setForm({ ...emptyForm, transformation_id: foundTransfo.id });
+      setDialogOpen(true);
+      toast({ title: "Transformation identifiée", description: `Pour le lot associé` });
+    } else {
+      toast({ title: "Code non reconnu", description: "Ce QR code ne correspond à aucune transformation connue.", variant: "destructive" });
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Supprimer ce conditionnement ?")) return;
     const { error } = await supabase.from("conditionnements").delete().eq("id", id);
@@ -116,10 +138,14 @@ export default function Conditionnement() {
           </h1>
           <p className="text-muted-foreground mt-1">Gestion de l'emballage et des sacs de riz</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openAdd} className="gap-2"><Plus className="w-4 h-4" /> Nouveau conditionnement</Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsScanning(true)} className="gap-2">
+            <ScanLine className="w-4 h-4" /> Scanner Transformation
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openAdd} className="gap-2"><Plus className="w-4 h-4" /> Nouveau conditionnement</Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>{editTarget ? "Modifier" : "Enregistrer un conditionnement"}</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 mt-2">
@@ -165,7 +191,30 @@ export default function Conditionnement() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      {isScanning && (
+        <QRScanner 
+          onScanSuccess={handleScanSuccess} 
+          onClose={() => setIsScanning(false)} 
+        />
+      )}
+
+      <Dialog open={!!qrTarget} onOpenChange={(open) => !open && setQrTarget(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>QR Code Conditionnement</DialogTitle>
+          </DialogHeader>
+          {qrTarget && (
+            <QRGenerator 
+              value={qrTarget.id} 
+              title={`Conditionnement`} 
+              subtitle={`${qrTarget.quantite_sacs} sacs de ${qrTarget.type_emballage}`} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -212,6 +261,9 @@ export default function Conditionnement() {
                     <td className="px-4 py-3">{new Date(c.date_conditionnement).toLocaleDateString("fr-FR")}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => setQrTarget(c)} title="Afficher QR Code">
+                          <QrCode className="w-3.5 h-3.5" />
+                        </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(c)}><Edit2 className="w-3.5 h-3.5" /></Button>
                         {isAdmin && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(c.id)}><Trash2 className="w-3.5 h-3.5" /></Button>}
                       </div>
